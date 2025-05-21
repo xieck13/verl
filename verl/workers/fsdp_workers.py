@@ -155,6 +155,7 @@ class ActorRolloutRefWorker(Worker):
         enable_gradient_checkpointing=False,
         trust_remote_code=False,
         use_liger=False,
+        use_fp8=False,
         role="actor",
     ):
         from torch import optim
@@ -224,6 +225,11 @@ class ActorRolloutRefWorker(Worker):
                 from liger_kernel.transformers.monkey_patch import _apply_liger_kernel_to_instance
 
                 _apply_liger_kernel_to_instance(model=actor_module)
+
+            if use_fp8:
+                from verl.models.transformers.fp8_patch import apply_fp8_patch
+
+                apply_fp8_patch(module=actor_module)
 
             # some parameters may not in torch_dtype. TODO(zhangchi.usc1992) remove this after we switch to fsdp2
             actor_module.to(torch_dtype)
@@ -488,6 +494,7 @@ class ActorRolloutRefWorker(Worker):
                 enable_gradient_checkpointing=self.config.model.get("enable_gradient_checkpointing", False),
                 trust_remote_code=self.config.model.get("trust_remote_code", False),
                 use_liger=self.config.model.get("use_liger", False),
+                use_fp8=self.config.model.get("use_fp8", False),
                 role="actor",
             )
 
@@ -808,6 +815,12 @@ class CriticWorker(Worker):
 
                 apply_monkey_patch(model=critic_module, ulysses_sp_size=self.ulysses_sequence_parallel_size)
 
+            use_fp8 = config.model.get("use_fp8", False)
+            if use_fp8:
+                from verl.models.transformers.fp8_patch import apply_fp8_patch
+
+                apply_fp8_patch(module=critic_module)
+
             # some parameters may not in torch_dtype
             critic_module.to(torch_dtype)
 
@@ -1094,6 +1107,10 @@ class RewardModelWorker(Worker):
                 from verl.models.transformers.monkey_patch import apply_monkey_patch
 
                 apply_monkey_patch(model=reward_module, ulysses_sp_size=self.ulysses_sequence_parallel_size)
+
+            if config.model.get("use_fp8", False):
+                from verl.models.transformers.fp8_patch import apply_fp8_patch
+                apply_fp8_patch(module=reward_module)
 
             reward_module.to(torch.bfloat16)
 
