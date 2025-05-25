@@ -529,6 +529,7 @@ class ActorRolloutRefWorker(Worker):
                 use_remove_padding=use_remove_padding,
                 trust_remote_code=self.config.model.get("trust_remote_code", False),
                 use_liger=self.config.model.get("use_liger", False),
+                use_fp8=self.config.model.get("use_fp8", False),
                 role="ref",
             )[0]
             OmegaConf.set_struct(self.config.ref, True)
@@ -820,7 +821,8 @@ class CriticWorker(Worker):
 
             use_fp8 = config.model.get("use_fp8", False)
             if use_fp8:
-                from verl.models.transformers.fp8_patch import apply_fp8_patch
+                # from verl.models.transformers.fp8_patch import apply_fp8_patch
+                from ..models.transformers.fp8_patch import apply_fp8_patch
 
                 apply_fp8_patch(module=critic_module)
 
@@ -1112,7 +1114,8 @@ class RewardModelWorker(Worker):
                 apply_monkey_patch(model=reward_module, ulysses_sp_size=self.ulysses_sequence_parallel_size)
 
             if config.model.get("use_fp8", False):
-                from verl.models.transformers.fp8_patch import apply_fp8_patch
+                # from verl.models.transformers.fp8_patch import apply_fp8_patch
+                from ..models.transformers.fp8_patch import apply_fp8_patch
 
                 apply_fp8_patch(module=reward_module)
 
