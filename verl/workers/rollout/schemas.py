@@ -346,7 +346,7 @@ class AsyncRolloutRequest(BaseModel):
         messages = [msg.model_dump() for msg in self.messages]
         tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
         full_prompt_info = self._handle_apply_chat_template(processing_class, messages, multi_modal_data=self.multi_modal_data, tools=tools, add_generation_prompt=False, tokenize=True, return_dict=True)
-        full_prompt_input_ids = full_prompt_info["input_ids"]
+        full_prompt_ids = full_prompt_info["input_ids"]
 
         # prepare the multi_modal_inputs
         self.multi_modal_inputs = full_prompt_info.copy()
@@ -357,7 +357,7 @@ class AsyncRolloutRequest(BaseModel):
             # When there is a diff, we log the diffs with diff_surrounding_chars context
             diff_surrounding_chars = 10
 
-            if diffs := self._get_prompt_diffs(processing_class, full_prompt_input_ids, self.input_ids, diff_surrounding_chars=diff_surrounding_chars):
+            if diffs := self._get_prompt_diffs(processing_class, full_prompt_ids, self.input_ids, diff_surrounding_chars=diff_surrounding_chars):
                 log_warning = False
                 if self.tokenization_sanity_check_mode == TokenizationSanityCheckModeEnum.STRICT:
                     log_warning = True
