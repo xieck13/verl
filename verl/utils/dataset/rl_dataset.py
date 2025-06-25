@@ -236,6 +236,7 @@ class RLHFDataset(Dataset):
             # There's a trap here, multi_modal_inputs has to be a dict, not BatchFeature
             row_dict["multi_modal_data"] = multi_modal_data
 
+            # We will do batch.union() in the trainer, we cannot have "multi_modal_inputs" in row_dict if rollout generates new multi_modal_inputs
             if self.process_multi_modal_inputs:
                 row_dict["multi_modal_inputs"] = dict(model_inputs)
 
