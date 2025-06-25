@@ -95,7 +95,13 @@ class DataParallelPPOActor(BasePPOActor):
                     # For MiniCPM-o: keep as list structure instead of concatenating tensors
                     multi_modal_inputs[key] = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
                 else:
-                    multi_modal_inputs[key] = torch.cat([inputs[key] for inputs in micro_batch["multi_modal_inputs"]], dim=0)
+                    inputs_list = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
+
+                    # when rollout generates new multi_modal_inputs, the inputs_list is a list, not a tensor
+                    if not isinstance(inputs_list[0], torch.Tensor):
+                        inputs_list = [torch.tensor(x, device=get_device_id()) for x in inputs_list]
+
+                    multi_modal_inputs[key] = torch.cat(inputs_list, dim=0)
 
         with torch.autocast(device_type=self.device_name, dtype=torch.bfloat16):
             input_ids = micro_batch["input_ids"]
