@@ -111,6 +111,16 @@ Example configuration:
             multi_turn:
                 tokenization_sanity_check_mode: "ignore_strippable"  # Choose from: "strict", "ignore_strippable", "off"
 
+Handling Multi-Modal Inputs in Datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your dataset includes multi-modal inputs (such as images or videos), you can control whether these are pre-processed and included in each sample by setting the process_multi_modal_inputs_in_dataset flag in your dataset config (used by RLHFDataset).
+
+- ``process_multi_modal_inputs_in_dataset: True`` (default): The dataset will pre-process and include a multi_modal_inputs dictionary for each sample. This dict contains the model-ready representations (e.g., image tensors, video tensors, etc.) as produced by your processor. This is useful for single-turn or SFT-style training, where the model expects all modalities to be present in the batch.
+
+- ``process_multi_modal_inputs_in_dataset: False``: The dataset will not include the multi_modal_inputs field. This is recommended for multi-turn RL or tool-augmented rollouts, where the model may generate new multi-modal inputs dynamically during rollout, and you want to avoid conflicts or redundant data in the batch.
+
+
 Special Cases
 ^^^^^^^^^^^^^
 
