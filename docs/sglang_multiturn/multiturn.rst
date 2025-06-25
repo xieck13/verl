@@ -59,13 +59,13 @@ Image and video should be processed before returning. For example, if you are us
 
 .. code-block:: python
 
-    async def execute(self, ...) -> Tuple[Dict[str, Any], float, dict]:
+    async def execute(self, ...) -> Tuple[str | Dict[str, Any], float, dict]:
         ...
         from verl.utils.dataset.vision_utils import process_image, process_video
 
         img1 = process_image(img1)
         video1 = process_video(video1)
-        
+
         return {"image": [img1, ...], "video": [video1, ...], "text": "..."}, 0, {}
 
 remeber to set ``process_multi_modal_inputs_in_dataset: False`` in your dataset config in order to process the multi-modal inputs in the rollout correctly.
