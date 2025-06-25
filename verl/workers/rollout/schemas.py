@@ -85,6 +85,7 @@ class AsyncRolloutRequest(BaseModel):
     messages: List[Message]
     multi_modal_keys: Optional[List[str]] = None
     multi_modal_data: Optional[Dict[str, Any]] = None
+    multi_modal_inputs: Optional[Dict[str, Any]] = None
     tool_schemas: Optional[List[OpenAIFunctionToolSchema]] = None
     tools_kwargs: Dict[str, Any] = {}
     interaction_kwargs: Dict[str, Any] = {}
@@ -242,17 +243,38 @@ class AsyncRolloutRequest(BaseModel):
         content_ids = self._handle_apply_chat_template(processing_class, messages, multi_modal_data={}, tools=tools, add_generation_prompt=False, tokenize=True)[self.base_conv_with_gen_prompt_end_pos :]
         self._update_input_ids(content_ids, attention_mask=True, loss_mask=True)
 
-    def add_tool_response_messages(self, processing_class: Union[PreTrainedTokenizer, PreTrainedTokenizerFast, ProcessorMixin], contents: list[str]) -> None:
+    def add_tool_response_messages(self, processing_class: Union[PreTrainedTokenizer, PreTrainedTokenizerFast, ProcessorMixin], contents: list[str | Dict[str, Any]]) -> None:
         if not contents:
             return
-
-        self.messages.extend([Message(role="tool", content=content) for content in contents])
+        # We also handle the case when tool returns image
+        # We require the processing of the image and video to be done at tool.execute() level
+        delta_multi_modal_data = {key: [] for key in self.multi_modal_keys}
+        for content in contents:
+            content_list = []
+            if isinstance(content, dict):
+                # When we update multi_model_keys, we also need to update this logic
+                if "image" in content:
+                    content_list.append({"type": "image"})
+                    delta_multi_modal_data["image"].append(content["image"])
+                elif "video" in content:
+                    content_list.append({"type": "video"})
+                    delta_multi_modal_data["video"].append(content["video"])
+                else:
+                    content_list.append({"type": "text", "text": content["text"].strip()})
+            else:
+                content_list.append({"type": "text", "text": content.strip()})
+            self.messages.append(Message(role="tool", content=content_list))
 
         messages = [*BASE_CHAT_HISTORY, *self.messages[-len(contents) :]]
         tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
 
-        # Currently we don't support tool creates multi-modal data
-        content_ids = self._handle_apply_chat_template(processing_class, messages, multi_modal_data={}, tools=tools, add_generation_prompt=False, tokenize=True)[self.base_conv_wo_gen_prompt_end_pos :]
+        for key in self.multi_modal_keys:
+            if len(delta_multi_modal_data[key]) > 0:
+                self.multi_modal_data[key].extend(delta_multi_modal_data[key])
+
+        # We just passed the new multi-modal data to the chat template to update the input_ids.
+        content_ids = self._handle_apply_chat_template(processing_class, messages, multi_modal_data=delta_multi_modal_data, tools=tools, add_generation_prompt=False, tokenize=True)[self.base_conv_wo_gen_prompt_end_pos :]
+
         self._update_input_ids(content_ids, attention_mask=True, loss_mask=False)
 
     def update_metrics(self, metrics: Any, tool_id: str) -> None:
@@ -320,15 +342,22 @@ class AsyncRolloutRequest(BaseModel):
     ) -> None:
         self.state = AsyncRolloutRequestStateEnum.COMPLETED
         self.reward_scores = reward_scores
+
+        messages = [msg.model_dump() for msg in self.messages]
+        tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
+        full_prompt_info = self._handle_apply_chat_template(processing_class, messages, multi_modal_data=self.multi_modal_data, tools=tools, add_generation_prompt=False, tokenize=True, return_dict=True)
+        full_prompt_input_ids = full_prompt_info["input_ids"]
+
+        # prepare the multi_modal_inputs
+        self.multi_modal_inputs = full_prompt_info.copy()
+        self.multi_modal_inputs.pop("input_ids", None)
+        self.multi_modal_inputs.pop("attention_mask", None)
+
         if self.tokenization_sanity_check_mode != TokenizationSanityCheckModeEnum.OFF:
             # When there is a diff, we log the diffs with diff_surrounding_chars context
             diff_surrounding_chars = 10
 
-            messages = [msg.model_dump() for msg in self.messages]
-            tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
-            full_prompt_ids = self._handle_apply_chat_template(processing_class, messages, multi_modal_data=self.multi_modal_data, tools=tools, add_generation_prompt=False, tokenize=True)
-
-            if diffs := self._get_prompt_diffs(processing_class, full_prompt_ids, self.input_ids, diff_surrounding_chars=diff_surrounding_chars):
+            if diffs := self._get_prompt_diffs(processing_class, full_prompt_input_ids, self.input_ids, diff_surrounding_chars=diff_surrounding_chars):
                 log_warning = False
                 if self.tokenization_sanity_check_mode == TokenizationSanityCheckModeEnum.STRICT:
                     log_warning = True
