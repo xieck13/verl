@@ -1076,7 +1076,7 @@ class SGLangRollout(BaseRollout):
             non_tensor_batch={
                 "messages": np.array(messages),
                 "reward_scores": np.array(reward_scores),
-                "multi_modal_inputs": multi_modal_inputs,
+                "multi_modal_inputs": np.array(multi_modal_inputs, dtype=object),
             },
         )
 
