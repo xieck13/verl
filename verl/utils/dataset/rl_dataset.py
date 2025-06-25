@@ -115,6 +115,7 @@ class RLHFDataset(Dataset):
         self.need_tools_kwargs = config.get("need_tools_kwargs", False)
         self.filter_prompts = config.get("filter_prompts", True)
         self.serialize_dataset = False
+        self.process_multi_modal_inputs = config.get("process_multi_modal_inputs", True)
         self._download()
         self._read_files_and_tokenize()
 
@@ -234,10 +235,12 @@ class RLHFDataset(Dataset):
 
             # There's a trap here, multi_modal_inputs has to be a dict, not BatchFeature
             row_dict["multi_modal_data"] = multi_modal_data
-            # row_dict["multi_modal_inputs"] = dict(model_inputs)
 
-            # # second_per_grid_ts isn't used for training, just for mrope
-            # row_dict["multi_modal_inputs"].pop("second_per_grid_ts", None)
+            if self.process_multi_modal_inputs:
+                row_dict["multi_modal_inputs"] = dict(model_inputs)
+
+                # second_per_grid_ts isn't used for training, just for mrope
+                row_dict["multi_modal_inputs"].pop("second_per_grid_ts", None)
 
         else:
             raw_prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
