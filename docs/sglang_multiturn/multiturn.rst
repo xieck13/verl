@@ -53,6 +53,17 @@ If you want rollout with simulated interaction, you can set the ``interaction_co
         rollout:
             interaction_config_file: <path_to_interaction_yaml_file>
 
+If your tool creates multi-modal inputs, you should return a list of multi-modal inputs in your tool.execute() implementation.
+
+.. code-block:: python
+
+    async def execute(self, ...) -> Tuple[Dict[str, Any], float, dict]:
+        ...
+        return {"image": [img1, img2, ...], "video": [video1, video2, ...], "text": "..."}, 0, {}
+
+remeber to set ``process_multi_modal_inputs_in_dataset: False`` in your dataset config in order to process the multi-modal inputs in the rollout correctly.
+Refer to the `Handling Multi-Modal Inputs in Datasets`_ section for more details.
+
 Multi-turn Tokenization
 ~~~~~~~~~~~~~~~~~~~~~~~
 

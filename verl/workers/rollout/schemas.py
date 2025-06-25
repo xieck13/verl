@@ -255,10 +255,14 @@ class AsyncRolloutRequest(BaseModel):
                 # When we update multi_model_keys, we also need to update this logic
                 if "image" in content:
                     content_list.append({"type": "image"})
-                    delta_multi_modal_data["image"].append(content["image"])
+                    if not isinstance(content["image"], list):
+                        raise ValueError(f"Image must be a list, but got {type(content['image'])}. Please check the tool.execute() implementation. For single images, wrap in a list: [image]. Example: {{'image': [img1]}} or {{'image': [img1, img2, ...]}}.")
+                    delta_multi_modal_data["image"].extend(content["image"])
                 elif "video" in content:
                     content_list.append({"type": "video"})
-                    delta_multi_modal_data["video"].append(content["video"])
+                    if not isinstance(content["video"], list):
+                        raise ValueError(f"Video must be a list, but got {type(content['video'])}. Please check the tool.execute() implementation. For single videos, wrap in a list: [video]. Example: {{'video': [video1]}} or {{'video': [video1, video2, ...]}}.")
+                    delta_multi_modal_data["video"].extend(content["video"])
                 else:
                     content_list.append({"type": "text", "text": content["text"].strip()})
             else:
