@@ -127,7 +127,7 @@ class AsyncRolloutRequest(BaseModel):
 
         # If there is no multi_modal_keys, we assume the multi-modal data is image and video.
         if not values.get("multi_modal_keys"):
-            values["multi_modal_keys"] = ["image", "video"]
+            values["multi_modal_keys"] = ["images", "videos"]
         if not values.get("multi_modal_data"):
             values["multi_modal_data"] = {key: [] for key in values["multi_modal_keys"]}
         else:
@@ -177,8 +177,8 @@ class AsyncRolloutRequest(BaseModel):
                 return raw_prompt
 
             # When we update multi_model_keys, we also need to update this logic
-            images = images if len(images := multi_modal_data.get("image", [])) > 0 else None
-            videos = videos if len(videos := multi_modal_data.get("video", [])) > 0 else None
+            images = images if len(images := multi_modal_data.get("images", [])) > 0 else None
+            videos = videos if len(videos := multi_modal_data.get("videos", [])) > 0 else None
             model_inputs = processing_class(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
             assert model_inputs["input_ids"].shape[0] == 1, "input_ids should be a 1D array"
             model_inputs = {k: v[0].tolist() if hasattr(v, "tolist") else v for k, v in model_inputs.items()}
@@ -253,18 +253,18 @@ class AsyncRolloutRequest(BaseModel):
             content_list = []
             if isinstance(content, dict):
                 # When we update multi_model_keys, we also need to update this logic
-                if "image" in content:
-                    if not isinstance(content["image"], list):
-                        raise ValueError(f"Image must be a list, but got {type(content['image'])}. Please check the tool.execute() implementation. For single images, wrap in a list: [image]. Example: {{'image': [img1]}} or {{'image': [img1, img2, ...]}}.")
+                if "images" in content:
+                    if not isinstance(content["images"], list):
+                        raise ValueError(f"Image must be a list, but got {type(content['images'])}. Please check the tool.execute() implementation. For single images, wrap in a list: [image]. Example: {{'images': [img1]}} or {{'images': [img1, img2, ...]}}.")
 
-                    content_list.extend([{"type": "image"} for _ in content["image"]])
-                    delta_multi_modal_data["image"].extend(content["image"])
-                elif "video" in content:
-                    if not isinstance(content["video"], list):
-                        raise ValueError(f"Video must be a list, but got {type(content['video'])}. Please check the tool.execute() implementation. For single videos, wrap in a list: [video]. Example: {{'video': [video1]}} or {{'video': [video1, video2, ...]}}.")
+                    content_list.extend([{"type": "image"} for _ in content["images"]])
+                    delta_multi_modal_data["images"].extend(content["images"])
+                elif "videos" in content:
+                    if not isinstance(content["videos"], list):
+                        raise ValueError(f"Video must be a list, but got {type(content['videos'])}. Please check the tool.execute() implementation. For single videos, wrap in a list: [video]. Example: {{'videos': [video1]}} or {{'videos': [video1, video2, ...]}}.")
 
-                    content_list.extend([{"type": "video"} for _ in content["video"]])
-                    delta_multi_modal_data["video"].extend(content["video"])
+                    content_list.extend([{"type": "video"} for _ in content["videos"]])
+                    delta_multi_modal_data["videos"].extend(content["videos"])
                 else:
                     content_list.append({"type": "text", "text": content["text"].strip()})
             else:

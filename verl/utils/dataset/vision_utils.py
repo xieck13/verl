@@ -331,13 +331,13 @@ eg.
 
 {
     "type": "video",
-    "video": "file:///path/to/video.mp4"
+    "video": ["file:///path/to/video.mp4"]
 }
 # Defaults to fps=2, min_frames=4, max_frames=768
 
 {
     "type": "video",
-    "video": "file:///path/to/video.mp4",
+    "video": ["file:///path/to/video.mp4"],
     "fps": 2,
     "min_frames": 1,
     "max_frames": 32
@@ -396,7 +396,7 @@ def process_minicpmo_data(row_dict, messages, tokenizer, minicpmo_config, image_
     if len(row_dict[image_key]) == 1:
         multi_modal_data = {}
         image = process_image(row_dict.pop(image_key)[0])
-        multi_modal_data["image"] = [image]
+        multi_modal_data["images"] = [image]
         images_dict = {"<image>": image}
     else:
         raise NotImplementedError
