@@ -180,8 +180,14 @@ class AsyncRolloutRequest(BaseModel):
             images = images if len(images := multi_modal_data.get("images", [])) > 0 else None
             videos = videos if len(videos := multi_modal_data.get("videos", [])) > 0 else None
             model_inputs = processing_class(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
-            assert model_inputs["input_ids"].shape[0] == 1, "input_ids should be a 1D array"
-            model_inputs = {k: v[0].tolist() if hasattr(v, "tolist") else v for k, v in model_inputs.items()}
+            assert model_inputs["input_ids"].shape[0] == 1, "request level input_ids should be a 1D array"
+            assert model_inputs["attention_mask"].shape[0] == 1, "request level attention_mask should be a 1D array"
+
+            # current req level input_ids/attention_mask needs to be 1D array
+            model_inputs["input_ids"] = model_inputs["input_ids"][0]
+            model_inputs["attention_mask"] = model_inputs["attention_mask"][0]
+
+            model_inputs = {k: v.tolist() if hasattr(v, "tolist") else v for k, v in model_inputs.items()}
             if return_dict:
                 return model_inputs
             else:

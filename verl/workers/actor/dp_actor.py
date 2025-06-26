@@ -89,13 +89,7 @@ class DataParallelPPOActor(BasePPOActor):
         multi_modal_inputs = {}
         if "multi_modal_inputs" in micro_batch.keys():
             for key in micro_batch["multi_modal_inputs"][0].keys():
-                inputs_list = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
-
-                # when rollout generates new multi_modal_inputs, the inputs_list is a list, not a tensor
-                if isinstance(inputs_list[0], list):
-                    inputs_list = [torch.tensor(x, device=get_device_id()) for x in inputs_list]
-
-                multi_modal_inputs[key] = torch.cat(inputs_list, dim=0)
+                multi_modal_inputs[key] = torch.cat([inputs[key] for inputs in micro_batch["multi_modal_inputs"]], dim=0)
 
         with torch.autocast(device_type=self.device_name, dtype=torch.bfloat16):
             input_ids = micro_batch["input_ids"]
@@ -351,7 +345,17 @@ class DataParallelPPOActor(BasePPOActor):
         entropy_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
-                micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
+                micro_batch = {**micro_batch.batch.to(get_device_id()), **micro_batch.non_tensor_batch}
+            elif isinstance(micro_batch, dict):
+                for k, v in micro_batch.items():
+                    if isinstance(v, torch.Tensor):
+                        micro_batch[k] = v.to(get_device_id())
+                    elif k == "multi_modal_inputs" and v is not None:
+                        micro_batch[k] = [{kk: vv.to(get_device_id()) for kk, vv in item_dict.items()} for item_dict in v]
+                    else:
+                        micro_batch[k] = v
+            else:
+                micro_batch = micro_batch.to(get_device_id())  # actor device is cpu when using offload
             with torch.no_grad():
                 entropy, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature, calculate_entropy=calculate_entropy)
             log_probs_lst.append(log_probs)
