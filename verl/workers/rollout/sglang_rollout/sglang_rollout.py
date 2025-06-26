@@ -1010,7 +1010,7 @@ class SGLangRollout(BaseRollout):
             response_loss_mask.append(torch.tensor(req.response_loss_mask, dtype=torch.int, device=tgt_device))
             messages.append({"messages": req.messages})
             reward_scores.append(req.reward_scores)
-            multi_modal_inputs.append({k: [v] for k, v in req.multi_modal_inputs.items()})
+            multi_modal_inputs.append(req.multi_modal_inputs)
 
         prompt_ids = pad_sequence(
             prompt_ids,
