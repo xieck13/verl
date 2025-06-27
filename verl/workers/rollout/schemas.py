@@ -272,9 +272,9 @@ class AsyncRolloutRequest(BaseModel):
                     content_list.extend([{"type": "video"} for _ in content["video"]])
                     delta_multi_modal_data["video"].extend(content["video"])
                 else:
-                    content_list.append({"type": "text", "text": content["text"].strip()})
+                    content_list.append({"type": "text", "text": content["text"]})
             else:
-                content_list.append({"type": "text", "text": content.strip()})
+                content_list.append(content)
             self.messages.append(Message(role="tool", content=content_list))
 
         messages = [*BASE_CHAT_HISTORY, *self.messages[-len(contents) :]]
