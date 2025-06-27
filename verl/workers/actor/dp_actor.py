@@ -340,17 +340,7 @@ class DataParallelPPOActor(BasePPOActor):
         entropy_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
-                micro_batch = {**micro_batch.batch.to(get_device_id()), **micro_batch.non_tensor_batch}
-            elif isinstance(micro_batch, dict):
-                for k, v in micro_batch.items():
-                    if isinstance(v, torch.Tensor):
-                        micro_batch[k] = v.to(get_device_id())
-                    elif k == "multi_modal_inputs" and v is not None:
-                        micro_batch[k] = [{kk: vv.to(get_device_id()) for kk, vv in item_dict.items()} for item_dict in v]
-                    else:
-                        micro_batch[k] = v
-            else:
-                micro_batch = micro_batch.to(get_device_id())  # actor device is cpu when using offload
+                micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
             with torch.no_grad():
                 entropy, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature, calculate_entropy=calculate_entropy)
             log_probs_lst.append(log_probs)
