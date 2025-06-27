@@ -219,12 +219,18 @@ class RLHFDataset(Dataset):
             images = None
             if self.image_key in row_dict and row_dict.get(self.image_key, None) is not None:
                 images = [process_image(image) for image in row_dict.pop(self.image_key)]
-                multi_modal_data["images"] = images
+
+                # due to the image key is "image" instead of "images" in vllm, we need to use "image" here
+                # link: https://github.com/vllm-project/vllm/blob/3c545c0c3b98ee642373a308197d750d0e449403/vllm/multimodal/parse.py#L205
+                multi_modal_data["image"] = images
 
             videos = None
             if self.video_key in row_dict and row_dict.get(self.video_key, None) is not None:
                 videos = [process_video(video) for video in row_dict.pop(self.video_key)]
-                multi_modal_data["videos"] = [video.numpy() for video in videos]
+
+                # due to the video key is "video" instead of "videos" in vllm, we need to use "video" here
+                # link: https://github.com/vllm-project/vllm/blob/3c545c0c3b98ee642373a308197d750d0e449403/vllm/multimodal/parse.py#L205
+                multi_modal_data["video"] = [video.numpy() for video in videos]
 
             model_inputs = self.processor(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
 

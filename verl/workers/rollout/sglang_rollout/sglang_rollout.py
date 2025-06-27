@@ -582,7 +582,7 @@ class SGLangRollout(BaseRollout):
                     {
                         "prompt_token_ids": raw_prompt_ids,
                         "multi_modal_data": multi_modal_data,
-                        "image_data": (multi_modal_data.get("images", None) if isinstance(multi_modal_data, dict) else None),
+                        "image_data": (multi_modal_data.get("image", None) if isinstance(multi_modal_data, dict) else None),
                     }
                 )
         else:
@@ -733,10 +733,10 @@ class SGLangRollout(BaseRollout):
         image_data = None
         video_data = None
         if _req.multi_modal_data is not None and isinstance(_req.multi_modal_data, dict):
-            if "images" in _req.multi_modal_data and _req.multi_modal_data["images"]:
-                image_data = _req.multi_modal_data["images"]
-            if "videos" in _req.multi_modal_data and _req.multi_modal_data["videos"]:
-                video_data = _req.multi_modal_data["videos"]
+            if "image" in _req.multi_modal_data and _req.multi_modal_data["image"]:
+                image_data = _req.multi_modal_data["image"]
+            if "video" in _req.multi_modal_data and _req.multi_modal_data["video"]:
+                video_data = _req.multi_modal_data["video"]
                 logger.warning("video support is not implemented yet, current length of video data is %d", len(video_data))
 
         current_turns = 0
