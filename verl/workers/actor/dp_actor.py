@@ -88,14 +88,18 @@ class DataParallelPPOActor(BasePPOActor):
         response_length = micro_batch["responses"].size(-1)
         multi_modal_inputs = {}
         if "multi_modal_inputs" in micro_batch.keys():
-            for key in micro_batch["multi_modal_inputs"][0].keys():
-                inputs_list = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
+            if "image_bound" in micro_batch["multi_modal_inputs"][0]:  # minicpm-o logic
+                for key in micro_batch["multi_modal_inputs"][0].keys():
+                    multi_modal_inputs[key] = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
+            else:
+                for key in micro_batch["multi_modal_inputs"][0].keys():
+                    inputs_list = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
 
-                # when rollout generates new multi_modal_inputs, the inputs_list is a list, not a tensor
-                if isinstance(inputs_list[0], list):
-                    inputs_list = [torch.tensor(x, device=get_device_id()) for x in inputs_list]
+                    # when rollout generates new multi_modal_inputs, the inputs_list is a list, not a tensor
+                    if isinstance(inputs_list[0], list):
+                        inputs_list = [torch.tensor(x, device=get_device_id()) for x in inputs_list]
 
-                multi_modal_inputs[key] = torch.cat(inputs_list, dim=0)
+                    multi_modal_inputs[key] = torch.cat(inputs_list, dim=0)
 
         with torch.autocast(device_type=self.device_name, dtype=torch.bfloat16):
             input_ids = micro_batch["input_ids"]
@@ -116,25 +120,10 @@ class DataParallelPPOActor(BasePPOActor):
                 else:
                     position_ids_rmpad = index_first_axis(rearrange(position_ids.unsqueeze(-1), "b s ... -> (b s) ..."), indices).transpose(0, 1)
 
-                if "multi_modal_inputs" in micro_batch:
-                    # MiniCPM-o specific processing for image bounds and pixel values
-                    if "image_bound" in multi_modal_inputs:
-                        # Adjust image bounds based on left padding and cumulative sequence lengths
-                        # This is necessary for MiniCPM-o's vision-language alignment
-                        left_padding_length = torch.argmax(attention_mask, dim=1)
-                        image_bounds = []
-                        for i in range(len(multi_modal_inputs["image_bound"])):
-                            image_bound = multi_modal_inputs["image_bound"][i].to(left_padding_length.device) - left_padding_length[i] + cu_seqlens[i]
-                            image_bounds.append(image_bound)
-                        multi_modal_inputs["image_bound"] = [torch.vstack(image_bounds)]
-                        # Flatten pixel values list for MiniCPM-o processing
-                        pixel_values = []
-                        for i in range(len(multi_modal_inputs["pixel_values"])):
-                            pixel_values.extend([p for p in multi_modal_inputs["pixel_values"][i]])
-                        multi_modal_inputs["pixel_values"] = [pixel_values]
-                    # Handle target sizes for MiniCPM-o vision processing
-                    if "tgt_sizes" in multi_modal_inputs:
-                        multi_modal_inputs["tgt_sizes"] = [torch.vstack(multi_modal_inputs["tgt_sizes"])]
+                if "image_bound" in multi_modal_inputs:
+                    from verl.utils.dataset.vision_utils import process_multi_modal_inputs_for_minicpmo
+
+                    multi_modal_inputs = process_multi_modal_inputs_for_minicpmo(input_ids, attention_mask, position_ids, cu_seqlens, multi_modal_inputs)
 
                 # for compute the log_prob
                 input_ids_rmpad_rolled = torch.roll(input_ids_rmpad, shifts=-1, dims=1)  # (1, total_nnz)
