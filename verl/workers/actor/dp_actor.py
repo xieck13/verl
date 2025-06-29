@@ -88,20 +88,13 @@ class DataParallelPPOActor(BasePPOActor):
         response_length = micro_batch["responses"].size(-1)
         multi_modal_inputs = {}
 
-        tensor_device = micro_batch["input_ids"].device
         if "multi_modal_inputs" in micro_batch.keys():
             if "image_bound" in micro_batch["multi_modal_inputs"][0]:  # minicpm-o logic
                 for key in micro_batch["multi_modal_inputs"][0].keys():
                     multi_modal_inputs[key] = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
             else:
                 for key in micro_batch["multi_modal_inputs"][0].keys():
-                    inputs_list = [inputs[key] for inputs in micro_batch["multi_modal_inputs"]]
-
-                    # when rollout generates new multi_modal_inputs, the inputs_list is a list, not a tensor
-                    if isinstance(inputs_list[0], list):
-                        inputs_list = [torch.tensor(x, device=tensor_device) for x in inputs_list]
-
-                    multi_modal_inputs[key] = torch.cat(inputs_list, dim=0)
+                    multi_modal_inputs[key] = torch.cat([inputs[key] for inputs in micro_batch["multi_modal_inputs"]], dim=0)
 
         with torch.autocast(device_type=self.device_name, dtype=torch.bfloat16):
             input_ids = micro_batch["input_ids"]
