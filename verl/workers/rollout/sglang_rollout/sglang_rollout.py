@@ -729,15 +729,6 @@ class SGLangRollout(BaseRollout):
         finish_reason_type = None
         output = None
 
-        image_data = None
-        video_data = None
-        if _req.multi_modal_data is not None and isinstance(_req.multi_modal_data, dict):
-            if "image" in _req.multi_modal_data and _req.multi_modal_data["image"]:
-                image_data = _req.multi_modal_data["image"]
-            if "video" in _req.multi_modal_data and _req.multi_modal_data["video"]:
-                video_data = _req.multi_modal_data["video"]
-                logger.warning("video support is not implemented yet, current length of video data is %d", len(video_data))
-
         current_turns = 0
         user_turns = 0
         user_turn_rewards = []
@@ -806,7 +797,13 @@ class SGLangRollout(BaseRollout):
                 if len(_req.get_generation_prompt_ids(self.processing_class)) + 1 >= self.config.max_model_len:
                     finish_reason_type = FinishReasonTypeEnum.LENGTH
                     break
+
                 # Video support is not implemented yet
+                image_data = _req.multi_modal_data["image"] if _req.multi_modal_data and "image" in _req.multi_modal_data else None
+                video_data = _req.multi_modal_data["video"] if _req.multi_modal_data and "video" in _req.multi_modal_data else None
+                if video_data:
+                    logger.warning("video support is not implemented yet, current length of video data is %d", len(video_data))
+
                 output = await self._handle_engine_call(_req, request_sampling_params, image_data=image_data)
                 content = output["text"]
                 finish_reason_type = FinishReasonTypeEnum.from_str(output["meta_info"]["finish_reason"]["type"])
