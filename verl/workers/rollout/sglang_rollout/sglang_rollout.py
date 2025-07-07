@@ -1062,6 +1062,7 @@ class SGLangRollout(BaseRollout):
         messages = []
         reward_scores = []
         multi_modal_inputs = []
+        tool_call_counts = []
 
         for req in sorted_output_req_list:
             assert req.state == AsyncRolloutRequestStateEnum.COMPLETED, f"Request {req.request_id} is not completed"
@@ -1102,6 +1103,8 @@ class SGLangRollout(BaseRollout):
             messages.append({"messages": req.messages})
             reward_scores.append(req.reward_scores)
             multi_modal_inputs.append(req.multi_modal_inputs)
+
+            tool_call_counts.append(sum(len(calls) for calls in req.metrics.values()))
 
         prompt_ids = pad_sequence(
             prompt_ids,
@@ -1202,6 +1205,7 @@ class SGLangRollout(BaseRollout):
                 "reward_scores": np.array(reward_scores),
                 "uid": np.array([req.uid for req in sorted_output_req_list]),
                 "multi_modal_inputs": np.array(multi_modal_inputs, dtype=object),
+                "tool_call_counts": np.array(tool_call_counts, dtype=np.int32),
             },
         )
 
