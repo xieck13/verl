@@ -18,10 +18,11 @@ from typing import Any, Tuple
 import numpy as np
 import pytest
 import ray
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from transformers.utils import get_json_schema
 
 from tests.experimental.agent_loop.agent_utils import init_agent_loop_manager
+from verl.experimental.agent_loop.agent_loop import get_trajectory_info
 from verl.protocol import DataProto
 from verl.tools.base_tool import BaseTool, OpenAIFunctionToolSchema
 from verl.utils import hf_tokenizer
@@ -29,7 +30,10 @@ from verl.utils import hf_tokenizer
 
 @pytest.fixture
 def init_config() -> DictConfig:
-    config = OmegaConf.load("verl/trainer/config/ppo_trainer.yaml")
+    from hydra import compose, initialize_config_dir
+
+    with initialize_config_dir(config_dir=os.path.abspath("verl/trainer/config")):
+        config = compose(config_name="ppo_trainer")
     model_path = "Qwen/Qwen2.5-1.5B-Instruct"
     config.actor_rollout_ref.model.path = model_path
     config.actor_rollout_ref.rollout.name = os.getenv("ROLLOUT_NAME", "vllm")
@@ -246,3 +250,21 @@ def test_tool_agent(init_config):
 
     print("Test passed!")
     ray.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_get_trajectory_info():
+    """Tests the get_trajectory_info method."""
+    # Initialize the class to set up class-level attributes
+    step = 10
+    index = [1, 1, 3, 3]
+    expected_info = [
+        {"step": step, "sample_index": 1, "rollout_n": 0},
+        {"step": step, "sample_index": 1, "rollout_n": 1},
+        {"step": step, "sample_index": 3, "rollout_n": 0},
+        {"step": step, "sample_index": 3, "rollout_n": 1},
+    ]
+
+    trajectory_info = await get_trajectory_info(step, index)
+
+    assert trajectory_info == expected_info
