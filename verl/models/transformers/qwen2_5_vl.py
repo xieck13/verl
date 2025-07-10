@@ -58,7 +58,7 @@ def forward_base_model(
     return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
     if inputs_embeds is None:
-        inputs_embeds = self.model.embed_tokens(input_ids)
+        inputs_embeds = self.model.language_model.embed_tokens(input_ids)
         if pixel_values is not None:
             pixel_values = pixel_values.type(self.visual.dtype)
             image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)

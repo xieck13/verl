@@ -17,6 +17,8 @@
 import asyncio
 import logging
 import os
+from packaging import version
+import transformers
 
 import torch
 import torch.distributed as dist
@@ -151,9 +153,19 @@ class FSDPSGLangShardingManager(BaseShardingManager):
         params = self.module.state_dict()
         log_gpu_memory_usage("After state_dict() in sharding manager memory", logger=logger)
         device = get_device_id()  # used when fsdp2 set cpu_offload_policy
-        params = {
-            k: v.to(device, non_blocking=True) if fsdp_version(self.module) == 2 else v for k, v in params.items()
-        }
+        if version.parse(transformers.__version__) >= version.parse("4.52.0"):
+            # sglang dose not support model.language_model(update in 4.52.0) in vlm
+            def rename_k(k):
+                if "model.language_model." in k:
+                    return k.replace("model.language_model.", "model.")
+                elif "model.visual." in k:
+                    return k.replace("model.visual.", "visual.")
+                else:
+                    return k
+            logger.warning(f"sglang dose not support vlm with transformers version >= 4.52.0, current transformers version: {transformers.__version__}")
+            params = {rename_k(k): v.to(device, non_blocking=True) if fsdp_version(self.module) == 2 else v for k, v in params.items()}
+        else:
+            params = {k: v.to(device, non_blocking=True) if fsdp_version(self.module) == 2 else v for k, v in params.items()}
 
         if self.device_mesh["infer_tp"].get_local_rank() == 0 and self.rollout_config.free_cache_engine:
             if self.multi_stage_wake_up:
